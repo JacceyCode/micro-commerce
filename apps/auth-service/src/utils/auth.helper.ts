@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import { ValidationError } from "@packages/error-handler";
-import { NextFunction } from "express";
 import redis from "@packages/libs/redis";
 import { sendEmail } from "./sendMail";
 import prisma from "@packages/libs/prisma";
@@ -27,43 +26,35 @@ export const validateRegistrationData = (
   }
 };
 
-export const checkOtpRestrictions = async (
-  email: string,
-  next: NextFunction
-) => {
+export const checkOtpRestrictions = async (email: string) => {
   if (await redis.get(`otp_lock:${email}`)) {
-    return next(
-      new ValidationError(
-        "Account locked due to multiple failed attempts! Try again after 30 minutes."
-      )
+    throw new ValidationError(
+      "Account locked due to multiple failed attempts! Try again after 30 minutes."
     );
   }
 
   if (await redis.get(`otp_spam_lock:${email}`)) {
-    return next(
-      new ValidationError(
-        "Too many OTP requests! Please wait 1hour before requesting again."
-      )
+    throw new ValidationError(
+      "Too many OTP requests! Please wait 1hour before requesting again."
     );
   }
 
   if (await redis.get(`otp_cooldown:${email}`)) {
-    return next(
-      new ValidationError("Please wait 1minute before requesting a new OTP!")
+    throw new ValidationError(
+      "Please wait 1minute before requesting a new OTP!"
     );
   }
 };
 
-export const trackOtpRequests = async (email: string, next: NextFunction) => {
+export const trackOtpRequests = async (email: string) => {
   const otpRequestKey = `otp_request_count:${email}`;
   let otpRequests = parseInt((await redis.get(otpRequestKey)) || "0");
 
-  if (otpRequests >= 2) {
+  if (otpRequests >= 3) {
     await redis.set(`otp_spam_lock:${email}`, "locked", "EX", 3600); // Lock for 1hour
-    return next(
-      new ValidationError(
-        "Too many OTP requests! Please wait 1hour before requesting again."
-      )
+
+    throw new ValidationError(
+      "Too many OTP requests! Please wait 1hour before requesting again."
     );
   }
 
@@ -118,7 +109,6 @@ export const verifyOtp = async (email: string, otp: string) => {
 };
 
 export const handleForgotPassword = async (
-  next: NextFunction,
   email: string,
   userType: "user" | "seller"
 ) => {
@@ -130,9 +120,9 @@ export const handleForgotPassword = async (
   if (!user) throw new ValidationError(`${userType} not found!`);
 
   // Check otp restritions
-  await checkOtpRestrictions(email, next);
-  await trackOtpRequests(email, next);
+  await checkOtpRestrictions(email);
+  await trackOtpRequests(email);
 
   // Generate OTP and send to user
-  await sendOtp(user.name, user.email, "forgot=password-user-email");
+  await sendOtp(user.name, user.email, "forgot-password-user-mail");
 };

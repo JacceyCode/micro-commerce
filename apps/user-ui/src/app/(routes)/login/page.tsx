@@ -1,11 +1,13 @@
 "use client";
 
+import { useMutation } from "@tanstack/react-query";
 import GoogleButton from "apps/user-ui/src/shared/components/google-button";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import axios, { AxiosError } from "axios";
 
 type FormData = {
   email: string;
@@ -24,7 +26,29 @@ const Login = () => {
     formState: { errors },
   } = useForm<FormData>();
 
-  const onSubmit = (data: FormData) => {};
+  const loginMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/auth/login-user`,
+        data,
+        { withCredentials: true }
+      );
+
+      return response.data;
+    },
+    onSuccess: () => {
+      setServerError(null);
+      router.push("/");
+    },
+    onError: (error: AxiosError) => {
+      const errorMessage =
+        (error.response?.data as { message?: string })?.message ||
+        "Invalid credentials!";
+      setServerError(errorMessage);
+    },
+  });
+
+  const onSubmit = (data: FormData) => loginMutation.mutate(data);
 
   return (
     <div className="w-full py-10 min-h-[85vh] bg-[#f1f1f1]">
@@ -120,9 +144,10 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full text-lg cursor-pointer bg-black text-white py-2 rounded-lg"
+              className="w-full text-lg cursor-pointer bg-black text-white py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loginMutation.isPending}
             >
-              Login
+              {loginMutation.isPending ? "Logging in..." : "Login"}
             </button>
 
             {serverError && (
