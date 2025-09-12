@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import GoogleButton from "apps/user-ui/src/shared/components/google-button";
+// import GoogleButton from "apps/user-ui/src/shared/components/google-button";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -131,7 +131,7 @@ const Signup = () => {
             </Link>
           </p>
 
-          <GoogleButton />
+          {/* <GoogleButton /> */}
 
           <div className="flex items-center my-5 text-gray-400 text-sm">
             <div className="flex-1 border-t border-gray-300" />
